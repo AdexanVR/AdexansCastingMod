@@ -36,6 +36,6 @@ namespace AdexansCastingMod
         public const string GUID = "com.adexan.castingmod";
         public const string Name = "Adexan's Casting Mod";
         // Bump this for every release; release.ps1 tags the GitHub release with it
-        public const string Version = "1.1.2";
+        public const string Version = "1.1.3";
     }
 }

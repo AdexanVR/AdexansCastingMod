@@ -2,6 +2,14 @@
 
 Each version's section is used as the GitHub release notes by `release.ps1`.
 
+## v1.1.3
+
+- Smoother spectator camera: other players' network stutter is filtered out ("Remove player stutter").
+- The chase camera follows the direction of travel and leads a running player a little.
+- The view widens slightly at speed ("Widen the view at speed").
+- After a wall pushes the camera in, it eases back out instead of jumping.
+- All of these can be adjusted on the Camera page.
+
 ## v1.1.2
 
 - Fixed: the auto-updater couldn't see the DLL in GitHub releases ("The release has no AdexansCastingMod.dll file"), and update history wasn't saved.

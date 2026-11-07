@@ -594,6 +594,10 @@ namespace AdexansCastingMod.UI
             s.rotationResponsiveness = f.Slider("Turn speed", s.rotationResponsiveness, 0f, 30f, v => v < 0.05f ? "Instant" : v.ToString("0.0"), 0.5f, "How fast the camera turns to face where the player looks", D.rotationResponsiveness);
             s.transition = (TransitionStyle)f.Choice("When switching players", (int)s.transition, Transitions, "Cut jumps straight to the new player, Glide flies there", (int)D.transition);
             s.glideMaxDistance = f.Slider("Glide only if closer than", s.glideMaxDistance, 1f, 100f, Meters, 1f, "Further away players are always a cut", D.glideMaxDistance);
+            s.trackingSmoothing = f.Slider("Remove player stutter", s.trackingSmoothing, 0f, 1f, Pct, 0.05f, "Smooths the jerky steps of other players' network movement. 0% = raw", D.trackingSmoothing);
+            s.followMovement = f.Toggle("Follow the direction of travel", s.followMovement, "While running, the camera turns toward where the player goes and leads them a little", D.followMovement);
+            s.dynamicFov = f.Toggle("Widen the view at speed", s.dynamicFov, "Adds a sense of pace; the view eases back when the player slows down", D.dynamicFov);
+            s.speedFovBoost = f.Slider("Extra field of view at full speed", s.speedFovBoost, 0f, 25f, v => "+" + v.ToString("0") + "°", 1f, null, D.speedFovBoost);
             SettingsChanged(f);
 
             f.Section("Per-mode options");

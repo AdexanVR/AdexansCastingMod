@@ -52,6 +52,10 @@ namespace AdexansCastingMod.Config
         public float positionResponsiveness = 7f;
         public float rotationResponsiveness = 9f;
         public float firstPersonOffset = 0.12f;
+        public float trackingSmoothing = 0.5f;   // 0 = raw head position, 1 = heavy smoothing
+        public bool followMovement = true;       // chase cam turns toward the direction of travel
+        public bool dynamicFov = true;           // widen the view a little at speed
+        public float speedFovBoost = 8f;
         public bool stabilizeHorizon = true;
         public float overheadHeight = 5f;
         public float orbitSpeed = 14f;
@@ -155,6 +159,8 @@ namespace AdexansCastingMod.Config
             positionResponsiveness = Mathf.Clamp(positionResponsiveness, 0f, 30f);
             rotationResponsiveness = Mathf.Clamp(rotationResponsiveness, 0f, 30f);
             firstPersonOffset = Mathf.Clamp(firstPersonOffset, 0f, 0.5f);
+            trackingSmoothing = Mathf.Clamp01(trackingSmoothing);
+            speedFovBoost = Mathf.Clamp(speedFovBoost, 0f, 25f);
             overheadHeight = Mathf.Clamp(overheadHeight, 1f, 20f);
             orbitSpeed = Mathf.Clamp(orbitSpeed, -90f, 90f);
             glideMaxDistance = Mathf.Clamp(glideMaxDistance, 1f, 100f);
