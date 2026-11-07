@@ -300,10 +300,14 @@ namespace AdexansCastingMod.UI.Fonts
             Color oldColor = GUI.color;
             if (italic)
             {
-                // Shear around the baseline so letters lean right
+                // Shear around the baseline so letters lean right. GUI.matrix acts on screen coordinates,
+                // not on the local coordinates of the current group/widget, so the pivot must be the
+                // baseline's screen position; using the local value shifted text sideways by
+                // 0.2 x (the widget's distance from the top of the screen).
+                float pivotY = GUIUtility.GUIToScreenPoint(new Vector2(x, baseline)).y;
                 Matrix4x4 shear = Matrix4x4.identity;
                 shear.m01 = -0.2f;
-                GUI.matrix = oldMatrix * Matrix4x4.Translate(new Vector3(0f, baseline, 0f)) * shear * Matrix4x4.Translate(new Vector3(0f, -baseline, 0f));
+                GUI.matrix = Matrix4x4.Translate(new Vector3(0f, pivotY, 0f)) * shear * Matrix4x4.Translate(new Vector3(0f, -pivotY, 0f)) * oldMatrix;
             }
             GUI.color = color;
 

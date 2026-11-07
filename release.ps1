@@ -1,4 +1,4 @@
-﻿<#
+<#
     Publishes a new version of Adexan's Casting Mod to GitHub Releases.
     Every player's mod checks GitHub on startup and installs the release on its own.
 
@@ -41,7 +41,8 @@ if (Test-Path $changelog) {
 }
 
 # --- build
-& dotnet build (Join-Path $root 'AdexansCastingMod.csproj') -c Release --nologo -v q
+# SkipPluginCopy: a release build must never touch the local game's plugins folder
+& dotnet build (Join-Path $root 'AdexansCastingMod.csproj') -c Release --nologo -v q -p:SkipPluginCopy=true
 if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
 $dll = Join-Path $root 'bin\Release\netstandard2.1\AdexansCastingMod.dll'
 

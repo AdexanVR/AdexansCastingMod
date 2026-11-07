@@ -44,8 +44,8 @@
     <EmbeddedResource Include="Fonts\OFL-*.txt" LogicalName="AdexansCastingMod.Fonts.%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <!-- Copies the built DLL into the game's plugins folder -->
-  <Target Name="CopyToPlugins" AfterTargets="Build">
+  <!-- Copies the built DLL into the game's plugins folder (release.ps1 turns this off with SkipPluginCopy) -->
+  <Target Name="CopyToPlugins" AfterTargets="Build" Condition="'$(SkipPluginCopy)' != 'true'">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GamePath)\BepInEx\plugins\AdexansCastingMod" />
   </Target>
 

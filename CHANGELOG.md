@@ -2,6 +2,10 @@
 
 Each version's section is used as the GitHub release notes by `release.ps1`.
 
+## v1.1.1
+
+- Fixed: with some fonts, italic text (player list names, the name in the lower third) slid sideways off its place, further the lower it was on screen.
+
 ## v1.1.0
 
 - **Day & Time:** set the time of day on your PC with a 24-hour slider, presets (Sunrise, Morning, Noon, Sunset, Night, Midnight) or an exact time. It stays applied in every map until you switch it off.
