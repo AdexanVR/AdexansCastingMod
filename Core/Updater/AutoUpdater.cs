@@ -379,7 +379,7 @@ namespace AdexansCastingMod.Core.Updater
             AddHistory(PluginInfo.Version, version, "Ready", "Restart the game to use it");
             Save();
             SetStatus(UpdateStatus.RestartToFinish, "Version " + version + " is installed. Restart the game to use it.");
-            rt.Toasts.Show("Update " + version + " installed, restart the game to use it", UI.Theme.Success);
+            rt.Toasts.Show("Update " + version + " installed: press Restart game in Settings > Updates", UI.Theme.Success);
         }
 
         void ScheduleOnExit(string staged, string sha, string version)
@@ -389,8 +389,8 @@ namespace AdexansCastingMod.Core.Updater
             state.pendingSha = sha;
             state.pendingFrom = PluginInfo.Version;
             Save();
-            SetStatus(UpdateStatus.InstallOnExit, "Version " + version + " is ready and installs when you close the game");
-            rt.Toasts.Show("Update " + version + " installs when you close the game", UI.Theme.Success);
+            SetStatus(UpdateStatus.InstallOnExit, "Version " + version + " is ready: restart the game to install it");
+            rt.Toasts.Show("Update " + version + " is ready: press Restart game in Settings > Updates", UI.Theme.Success);
         }
 
         static void Backup(string target)
@@ -463,21 +463,45 @@ namespace AdexansCastingMod.Core.Updater
             }
         }
 
-        // ------------------------------------------------------------ Apply after exit
+        // ------------------------------------------------------------ Apply after exit / restart
+
+        bool restartRequested;
+
+        // True once a new version is on disk (or waiting to be swapped in) and only a restart is missing
+        public bool NeedsRestart =>
+            Status == UpdateStatus.RestartToFinish || Status == UpdateStatus.InstallOnExit ||
+            (state.pendingVersion.Length > 0 && File.Exists(state.pendingFile));
+
+        // Closes the game; the helper started from OnApplicationQuit finishes the update and opens it again
+        public void RestartGame()
+        {
+            restartRequested = true;
+            Plugin.Log.LogInfo("Updater: restarting the game to finish the update");
+            Application.Quit();
+        }
 
         // Called when the game quits: hands a pending update to a small PowerShell helper that waits
-        // for the game to exit, re-checks the hash, then replaces the DLL (never leaving a half file)
+        // for the game to exit, re-checks the hash, then replaces the DLL (never leaving a half file).
+        // After a Restart request the helper also starts the game again (even if the swap failed,
+        // so the player always gets their game back, still on the working version).
         public void OnApplicationQuit()
         {
-            if (state.pendingVersion.Length == 0 || !File.Exists(state.pendingFile)) return;
+            int pid = Process.GetCurrentProcess().Id;
+            string relaunch = restartRequested ? RelaunchCommand() : null;
             string target = Plugin.PluginPath;
-            if (string.IsNullOrEmpty(target)) return;
+            bool pending = state.pendingVersion.Length > 0 && File.Exists(state.pendingFile) && !string.IsNullOrEmpty(target);
 
+            if (pending) StartHelper("apply_update.ps1", HelperScript(pid, state.pendingFile, target, state.pendingSha, state.pendingVersion, relaunch));
+            else if (relaunch != null) StartHelper("relaunch.ps1", RelaunchScript(pid, relaunch));
+        }
+
+        static void StartHelper(string fileName, string content)
+        {
             try
             {
                 Directory.CreateDirectory(WorkFolder);
-                string script = Path.Combine(WorkFolder, "apply_update.ps1");
-                File.WriteAllText(script, HelperScript(Process.GetCurrentProcess().Id, state.pendingFile, target, state.pendingSha, state.pendingVersion), new UTF8Encoding(true));
+                string script = Path.Combine(WorkFolder, fileName);
+                File.WriteAllText(script, content, new UTF8Encoding(true));
                 var psi = new ProcessStartInfo("powershell.exe", "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + script + "\"")
                 {
                     UseShellExecute = false,
@@ -491,9 +515,68 @@ namespace AdexansCastingMod.Core.Updater
             }
         }
 
+        // PowerShell command that opens the game again. Steam copies are started through Steam
+        // (started directly, a Steam game just bounces back through Steam anyway).
+        static string RelaunchCommand()
+        {
+            try
+            {
+                string exe = Environment.GetCommandLineArgs()[0];
+                if (!Path.IsPathRooted(exe)) exe = Path.GetFullPath(exe);
+                string dir = Path.GetDirectoryName(exe);
+
+                string appId = null;
+                string appIdFile = Path.Combine(dir, "steam_appid.txt");
+                if (File.Exists(appIdFile)) appId = File.ReadAllText(appIdFile).Trim();
+                if (string.IsNullOrEmpty(appId) && exe.IndexOf("steamapps", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    string.Equals(Path.GetFileNameWithoutExtension(exe), "Gorilla Tag", StringComparison.OrdinalIgnoreCase))
+                    appId = "1533390"; // Gorilla Tag's Steam app id
+
+                if (!string.IsNullOrEmpty(appId) && IsDigits(appId)) return "Start-Process " + Ps("steam://rungameid/" + appId);
+                return "Start-Process -FilePath " + Ps(exe) + " -WorkingDirectory " + Ps(dir);
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning("Updater: can't work out how to relaunch the game: " + e.Message);
+                return null;
+            }
+        }
+
+        static bool IsDigits(string s)
+        {
+            foreach (char c in s)
+                if (c < '0' || c > '9') return false;
+            return s.Length > 0;
+        }
+
         static string Ps(string s) => "'" + s.Replace("'", "''") + "'";
 
-        static string HelperScript(int pid, string source, string target, string sha, string version)
+        // Every exit path goes through Done, which reopens the game first when asked to
+        static void AppendDone(StringBuilder sb, int pid, string relaunch)
+        {
+            sb.AppendLine("function Done($code) {");
+            if (!string.IsNullOrEmpty(relaunch))
+            {
+                // Make sure the old process is really gone before starting a new one
+                sb.AppendLine("  try { Wait-Process -Id " + pid + " -Timeout 60 -ErrorAction SilentlyContinue } catch {}");
+                sb.AppendLine("  Start-Sleep -Seconds 2");
+                sb.AppendLine("  try { " + relaunch + " } catch {}");
+            }
+            sb.AppendLine("  exit $code");
+            sb.AppendLine("}");
+        }
+
+        static string RelaunchScript(int pid, string relaunch)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("$ErrorActionPreference = 'Stop'");
+            AppendDone(sb, pid, relaunch);
+            sb.AppendLine("try { Wait-Process -Id " + pid + " -Timeout 300 -ErrorAction SilentlyContinue } catch {}");
+            sb.AppendLine("Done 0");
+            return sb.ToString();
+        }
+
+        static string HelperScript(int pid, string source, string target, string sha, string version, string relaunch)
         {
             var sb = new StringBuilder();
             sb.AppendLine("$ErrorActionPreference = 'Stop'");
@@ -503,21 +586,22 @@ namespace AdexansCastingMod.Core.Updater
             sb.AppendLine("$expected = " + Ps(sha.ToUpperInvariant()));
             sb.AppendLine("$log = " + Ps(HelperLog));
             sb.AppendLine("function Log($m) { Add-Content -LiteralPath $log -Value ((Get-Date).ToString('u') + ' ' + $m) }");
+            AppendDone(sb, pid, relaunch);
             sb.AppendLine("try { Wait-Process -Id " + pid + " -Timeout 300 -ErrorAction SilentlyContinue } catch {}");
             sb.AppendLine("for ($i = 0; $i -lt 30; $i++) {");
             sb.AppendLine("  try {");
-            sb.AppendLine("    if ((Get-FileHash -LiteralPath $src -Algorithm SHA256).Hash -ne $expected) { Log 'FAILED downloaded file no longer matches its checksum'; exit 1 }");
+            sb.AppendLine("    if ((Get-FileHash -LiteralPath $src -Algorithm SHA256).Hash -ne $expected) { Log 'FAILED downloaded file no longer matches its checksum'; Done 1 }");
             sb.AppendLine("    Copy-Item -LiteralPath $src -Destination $tmp -Force");
-            sb.AppendLine("    if ((Get-FileHash -LiteralPath $tmp -Algorithm SHA256).Hash -ne $expected) { Remove-Item -LiteralPath $tmp -Force; Log 'FAILED copy was corrupted'; exit 1 }");
+            sb.AppendLine("    if ((Get-FileHash -LiteralPath $tmp -Algorithm SHA256).Hash -ne $expected) { Remove-Item -LiteralPath $tmp -Force; Log 'FAILED copy was corrupted'; Done 1 }");
             sb.AppendLine("    Move-Item -LiteralPath $tmp -Destination $dst -Force");
             sb.AppendLine("    Remove-Item -LiteralPath $src -Force -ErrorAction SilentlyContinue");
             sb.AppendLine("    Log 'INSTALLED " + version + "'");
-            sb.AppendLine("    exit 0");
+            sb.AppendLine("    Done 0");
             sb.AppendLine("  } catch { Start-Sleep -Seconds 1 }");
             sb.AppendLine("}");
             sb.AppendLine("if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }");
             sb.AppendLine("Log 'FAILED the mod file stayed locked'");
-            sb.AppendLine("exit 1");
+            sb.AppendLine("Done 1");
             return sb.ToString();
         }
 

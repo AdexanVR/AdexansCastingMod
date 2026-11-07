@@ -543,6 +543,31 @@ namespace AdexansCastingMod.UI
                     f.Y += 34f;
                 }
 
+                if (up.NeedsRestart)
+                {
+                    // The new version is on disk: one button closes the game and opens it again
+                    Rect bar = new Rect(f.X, f.Y, f.Width, 54f);
+                    Painter.Rect(bar, Painter.Alpha(Theme.Success, 0.16f), 9f);
+                    Painter.Border(bar, Painter.Alpha(Theme.Success, 0.5f), 1f, 9f);
+                    string ready = string.IsNullOrEmpty(up.State.pendingVersion) ? up.LatestVersion : up.State.pendingVersion;
+                    Painter.Text(new Rect(bar.x + 16f, bar.y + 6f, bar.width - 230f, 22f), "v" + ready + " is ready", 14, Theme.Text, TextAnchor.MiddleLeft, true);
+                    Painter.Text(new Rect(bar.x + 16f, bar.y + 27f, bar.width - 230f, 18f), "Restart the game to start using it", 11, Theme.TextDim, TextAnchor.MiddleLeft);
+                    Rect restart = new Rect(bar.xMax - 200f, bar.y + 9f, 188f, 36f);
+                    bool confirming = confirm == "restart";
+                    if (Controls.Button(restart, confirming ? "Click again to restart" : "Restart game", 13, true, accent: Theme.Success))
+                    {
+                        if (confirming)
+                        {
+                            confirm = null;
+                            rt.SaveAll();
+                            up.RestartGame();
+                        }
+                        else confirm = "restart";
+                    }
+                    Controls.Tip(restart, "Closes Gorilla Tag, finishes the update and opens the game again by itself");
+                    f.Y += 62f;
+                }
+
                 var labels = new List<string> { up.Busy ? "Working…" : "Check for updates" };
                 bool canInstall = up.UpdateKnown && !up.Busy && (up.Status == UpdateStatus.Available || up.Status == UpdateStatus.Failed);
                 if (canInstall) labels.Add("Install v" + up.LatestVersion);

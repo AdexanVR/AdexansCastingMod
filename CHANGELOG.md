@@ -2,6 +2,10 @@
 
 Each version's section is used as the GitHub release notes by `release.ps1`.
 
+## v1.1.4
+
+- New **Restart game** button in Settings > Updates once an update is ready: it closes Gorilla Tag, finishes installing the update and opens the game again by itself (through Steam).
+
 ## v1.1.3
 
 - Smoother spectator camera: other players' network stutter is filtered out ("Remove player stutter").
