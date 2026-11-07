@@ -2,6 +2,11 @@
 
 Each version's section is used as the GitHub release notes by `release.ps1`.
 
+## v1.1.2
+
+- Fixed: the auto-updater couldn't see the DLL in GitHub releases ("The release has no AdexansCastingMod.dll file"), and update history wasn't saved.
+- If you're on v1.1.0 or v1.1.1, install this version manually once; from here on updates install themselves.
+
 ## v1.1.1
 
 - Fixed: with some fonts, italic text (player list names, the name in the lower third) slid sideways off its place, further the lower it was on screen.

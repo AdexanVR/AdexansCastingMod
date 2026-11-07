@@ -21,9 +21,11 @@ namespace AdexansCastingMod.Core.Updater
         public static string ReleasesPage => "https://github.com/" + Repository + "/releases";
     }
 
-    // Shapes of the GitHub REST API response (only the fields used here)
+    // Shapes of the GitHub REST API response (only the fields used here).
+    // These must be PUBLIC: Unity's JsonUtility silently skips nested fields whose class is internal,
+    // which left the release's asset list empty in v1.1.0/v1.1.1.
     [Serializable]
-    internal class GitHubRelease
+    public class GitHubRelease
     {
         public string tag_name;
         public string name;
@@ -36,7 +38,7 @@ namespace AdexansCastingMod.Core.Updater
     }
 
     [Serializable]
-    internal class GitHubAsset
+    public class GitHubAsset
     {
         public string name;
         public string browser_download_url;
@@ -45,7 +47,7 @@ namespace AdexansCastingMod.Core.Updater
     }
 
     [Serializable]
-    internal class UpdateHistoryEntry
+    public class UpdateHistoryEntry
     {
         public string date;
         public string fromVersion;
@@ -56,7 +58,7 @@ namespace AdexansCastingMod.Core.Updater
 
     // Persisted to BepInEx/config/AdexansCastingMod/updater.json (never touched by an update itself)
     [Serializable]
-    internal class UpdaterState
+    public class UpdaterState
     {
         public string lastCheck = "";
         public string latestVersion = "";

@@ -525,10 +525,23 @@ namespace AdexansCastingMod.Core.Updater
 
         GitHubAsset FindAsset(string name)
         {
-            if (latest?.assets == null) return null;
-            foreach (GitHubAsset a in latest.assets)
-                if (a != null && string.Equals(a.name, name, StringComparison.OrdinalIgnoreCase)) return a;
-            return null;
+            if (latest?.assets != null)
+            {
+                foreach (GitHubAsset a in latest.assets)
+                    if (a != null && string.Equals(a.name, name, StringComparison.OrdinalIgnoreCase)) return a;
+            }
+
+            // Fallback if the asset list couldn't be read: release.ps1 always uploads these files under
+            // fixed names, so the official link follows from the tag. Integrity still rests on the
+            // SHA-256 file (the size check is skipped because the size is unknown here).
+            if (latest == null || string.IsNullOrEmpty(latest.tag_name)) return null;
+            Plugin.Log.LogWarning("Updater: release asset list was empty (" + (latest.assets?.Length ?? -1) + "), using the standard download link for " + name);
+            return new GitHubAsset
+            {
+                name = name,
+                browser_download_url = UpdateConfig.DownloadPrefix + Uri.EscapeDataString(latest.tag_name) + "/" + name,
+                size = 0,
+            };
         }
 
         static bool IsOfficial(GitHubAsset a) =>
